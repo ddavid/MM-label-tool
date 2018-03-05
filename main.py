@@ -10,14 +10,25 @@ from __future__ import division
 from Tkinter import *
 import tkMessageBox
 from PIL import Image, ImageTk
+import ttk
 import os
 import glob
 import random
 
 # colors for the bboxes
-COLORS = ['red', 'blue', 'yellow', 'pink', 'cyan', 'green', 'black']
+COLORS = ['blue', 'yellow', 'red', 'black']
 # image sizes for the examples
 SIZE = 256, 256
+
+def get_color_ix(label):
+    '''
+    '''
+    if label == 'blue-cone':
+        return 0
+    elif label == 'yellow-cone':
+        return 1
+    else:
+        return 2
 
 class LabelTool():
     def __init__(self, master):
@@ -40,6 +51,9 @@ class LabelTool():
         self.imagename = ''
         self.labelfilename = ''
         self.tkimg = None
+        self.currentLabelclass = ''
+        self.cla_can_temp = []
+        self.classcandidate_filename = 'class.txt'
 
         # initialize mouse state
         self.STATE = {}
@@ -60,7 +74,7 @@ class LabelTool():
         self.entry = Entry(self.frame)
         self.entry.grid(row = 0, column = 1, sticky = W+E)
         self.ldBtn = Button(self.frame, text = "Load", command = self.loadDir)
-        self.ldBtn.grid(row = 0, column = 2, sticky = W+E)
+        self.ldBtn.grid(row = 0, column = 2,sticky = W+E)
 
         # main panel for labeling
         self.mainPanel = Canvas(self.frame, cursor='tcross')
@@ -70,21 +84,41 @@ class LabelTool():
         self.parent.bind("s", self.cancelBBox)
         self.parent.bind("a", self.prevImage) # press 'a' to go backforward
         self.parent.bind("d", self.nextImage) # press 'd' to go forward
+        self.parent.bind("r", self.removeLastBox) 
+        self.parent.bind("1", self.setClass1) 
+        self.parent.bind("2", self.setClass2) 
+        self.parent.bind("3", self.setClass3) 
         self.mainPanel.grid(row = 1, column = 1, rowspan = 4, sticky = W+N)
+
+        # choose class
+        self.classname = StringVar()
+        self.classcandidate = ttk.Combobox(self.frame,state='readonly',textvariable=self.classname)
+        self.classcandidate.grid(row=1,column=2)
+        if os.path.exists(self.classcandidate_filename):
+        	with open(self.classcandidate_filename) as cf:
+        		for line in cf.readlines():
+        			# print line
+        			self.cla_can_temp.append(line.strip('\n'))
+        #print self.cla_can_temp
+        self.classcandidate['values'] = self.cla_can_temp
+        self.classcandidate.current(0)
+        self.currentLabelclass = self.classcandidate.get() #init
+        self.btnclass = Button(self.frame, text = 'ComfirmClass', command = self.setClass)
+        self.btnclass.grid(row=2,column=2,sticky = W+E)
 
         # showing bbox info & delete bbox
         self.lb1 = Label(self.frame, text = 'Bounding boxes:')
-        self.lb1.grid(row = 1, column = 2,  sticky = W+N)
+        self.lb1.grid(row = 3, column = 2,  sticky = W+N)
         self.listbox = Listbox(self.frame, width = 22, height = 12)
-        self.listbox.grid(row = 2, column = 2, sticky = N)
+        self.listbox.grid(row = 4, column = 2, sticky = N+S)
         self.btnDel = Button(self.frame, text = 'Delete', command = self.delBBox)
-        self.btnDel.grid(row = 3, column = 2, sticky = W+E+N)
+        self.btnDel.grid(row = 5, column = 2, sticky = W+E+N)
         self.btnClear = Button(self.frame, text = 'ClearAll', command = self.clearBBox)
-        self.btnClear.grid(row = 4, column = 2, sticky = W+E+N)
+        self.btnClear.grid(row = 6, column = 2, sticky = W+E+N)
 
         # control panel for image navigation
         self.ctrPanel = Frame(self.frame)
-        self.ctrPanel.grid(row = 5, column = 1, columnspan = 2, sticky = W+E)
+        self.ctrPanel.grid(row = 7, column = 1, columnspan = 2, sticky = W+E)
         self.prevBtn = Button(self.ctrPanel, text='<< Prev', width = 10, command = self.prevImage)
         self.prevBtn.pack(side = LEFT, padx = 5, pady = 3)
         self.nextBtn = Button(self.ctrPanel, text='Next >>', width = 10, command = self.nextImage)
@@ -97,6 +131,7 @@ class LabelTool():
         self.idxEntry.pack(side = LEFT)
         self.goBtn = Button(self.ctrPanel, text = 'Go', command = self.gotoImage)
         self.goBtn.pack(side = LEFT)
+
 
         # example pannel for illustration
         self.egPanel = Frame(self.frame, border = 10)
@@ -131,9 +166,12 @@ class LabelTool():
 ##            return
         # get image list
         self.imageDir = os.path.join(r'./Images', '%03d' %(self.category))
-        self.imageList = glob.glob(os.path.join(self.imageDir, '*.JPEG'))
+        #print self.imageDir 
+        #print self.category
+        self.imageList = glob.glob(os.path.join(self.imageDir, '*.JPG'))
+        #print self.imageList
         if len(self.imageList) == 0:
-            print 'No .JPEG images found in the specified dir!'
+            print 'No .JPG images found in the specified dir!'
             return
 
         # default to the 1st image in the collection
@@ -146,10 +184,12 @@ class LabelTool():
             os.mkdir(self.outDir)
 
         # load example bboxes
-        self.egDir = os.path.join(r'./Examples', '%03d' %(self.category))
+        #self.egDir = os.path.join(r'./Examples', '%03d' %(self.category))
+        self.egDir = os.path.join(r'./Examples/demo')
+        print os.path.exists(self.egDir)
         if not os.path.exists(self.egDir):
             return
-        filelist = glob.glob(os.path.join(self.egDir, '*.JPEG'))
+        filelist = glob.glob(os.path.join(self.egDir, '*.JPG'))
         self.tmp = []
         self.egList = []
         random.shuffle(filelist)
@@ -187,16 +227,21 @@ class LabelTool():
                     if i == 0:
                         bbox_cnt = int(line.strip())
                         continue
-                    tmp = [int(t.strip()) for t in line.split()]
-##                    print tmp
+                    # tmp = [int(t.strip()) for t in line.split()]
+                    tmp = line.split()
+                    #print tmp
                     self.bboxList.append(tuple(tmp))
-                    tmpId = self.mainPanel.create_rectangle(tmp[0], tmp[1], \
-                                                            tmp[2], tmp[3], \
+                    color_ix = get_color_ix(tmp[4])
+                    tmpId = self.mainPanel.create_rectangle(int(tmp[0]), int(tmp[1]), \
+                                                            int(tmp[2]), int(tmp[3]), \
                                                             width = 2, \
-                                                            outline = COLORS[(len(self.bboxList)-1) % len(COLORS)])
+                                                            outline = COLORS[color_ix])
+                    # print tmpId
                     self.bboxIdList.append(tmpId)
-                    self.listbox.insert(END, '(%d, %d) -> (%d, %d)' %(tmp[0], tmp[1], tmp[2], tmp[3]))
-                    self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
+                    self.listbox.insert(END, '%s : (%d, %d) -> (%d, %d)' %(tmp[4],int(tmp[0]), int(tmp[1]), \
+                    												  int(tmp[2]), int(tmp[3])))
+                    # self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
+                    self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[3])
 
     def saveImage(self):
         with open(self.labelfilename, 'w') as f:
@@ -212,11 +257,14 @@ class LabelTool():
         else:
             x1, x2 = min(self.STATE['x'], event.x), max(self.STATE['x'], event.x)
             y1, y2 = min(self.STATE['y'], event.y), max(self.STATE['y'], event.y)
-            self.bboxList.append((x1, y1, x2, y2))
+            if abs(y1 - y2) < 35:
+                return
+            self.bboxList.append((x1, y1, x2, y2, self.currentLabelclass))
             self.bboxIdList.append(self.bboxId)
             self.bboxId = None
-            self.listbox.insert(END, '(%d, %d) -> (%d, %d)' %(x1, y1, x2, y2))
-            self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
+            color_ix = get_color_ix(self.currentLabelclass)
+            self.listbox.insert(END, '%s : (%d, %d) -> (%d, %d)' %(self.currentLabelclass,x1, y1, x2, y2))
+            self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[3])
         self.STATE['click'] = 1 - self.STATE['click']
 
     def mouseMove(self, event):
@@ -231,10 +279,11 @@ class LabelTool():
         if 1 == self.STATE['click']:
             if self.bboxId:
                 self.mainPanel.delete(self.bboxId)
+            color_ix = get_color_ix(self.currentLabelclass)
             self.bboxId = self.mainPanel.create_rectangle(self.STATE['x'], self.STATE['y'], \
                                                             event.x, event.y, \
                                                             width = 2, \
-                                                            outline = COLORS[len(self.bboxList) % len(COLORS)])
+                                                            outline = COLORS[color_ix])
 
     def cancelBBox(self, event):
         if 1 == self.STATE['click']:
@@ -248,6 +297,15 @@ class LabelTool():
         if len(sel) != 1 :
             return
         idx = int(sel[0])
+        self.mainPanel.delete(self.bboxIdList[idx])
+        self.bboxIdList.pop(idx)
+        self.bboxList.pop(idx)
+        self.listbox.delete(idx)
+
+    def removeLastBox(self, event=None):
+        idx = self.listbox.size() - 1
+        if idx < 0:
+            return
         self.mainPanel.delete(self.bboxIdList[idx])
         self.bboxIdList.pop(idx)
         self.bboxList.pop(idx)
@@ -278,6 +336,26 @@ class LabelTool():
             self.saveImage()
             self.cur = idx
             self.loadImage()
+
+    def setClass(self):
+    	self.currentLabelclass = self.classcandidate.get()
+    	print 'set label class to :',self.currentLabelclass
+
+    def setClass1(self, event=None):
+        self.classcandidate.current(0)
+        self.currentLabelclass = self.classcandidate.get()
+        print 'set label class to #01:',self.currentLabelclass
+
+    def setClass2(self, event=None):
+        self.classcandidate.current(1)
+        self.currentLabelclass = self.classcandidate.get()
+        print 'set label class to #02:',self.currentLabelclass
+
+    def setClass3(self, event=None):
+        self.classcandidate.current(2)
+        self.currentLabelclass = self.classcandidate.get()
+        print 'set label class to #03:',self.currentLabelclass
+
 
 ##    def setImage(self, imagepath = r'test2.png'):
 ##        self.img = Image.open(imagepath)
