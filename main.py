@@ -18,7 +18,7 @@ import random
 # colors for the bboxes
 COLORS = ['blue', 'yellow', 'red', 'black']
 # image sizes for the examples
-SIZE = 256, 256
+SIZE = 10, 10
 
 def get_color_ix(label):
     '''
@@ -258,6 +258,7 @@ class LabelTool():
             x1, x2 = min(self.STATE['x'], event.x), max(self.STATE['x'], event.x)
             y1, y2 = min(self.STATE['y'], event.y), max(self.STATE['y'], event.y)
             if abs(y1 - y2) < 35:
+                self.cancelBBox(None)
                 return
             self.bboxList.append((x1, y1, x2, y2, self.currentLabelclass))
             self.bboxIdList.append(self.bboxId)
