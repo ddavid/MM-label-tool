@@ -14,11 +14,28 @@ import ttk
 import os
 import glob
 import random
+import math
 
 # colors for the bboxes
 COLORS = ['blue', 'yellow', 'red', 'black']
 # image sizes for the examples
 SIZE = 10, 10
+# Micrometers
+focal_length = 4000.0
+# Micrometers
+sensor_width  = 6182.4
+sensor_height = 4953.6
+# Radians
+h_AOV = 1.3158683
+v_AOV = 1.1088353
+# (cone_width, cone_height) in micrometers
+small_cone_width  = 228000.0
+small_cone_height = 325000.0
+large_cone_width  = 285000.0
+large_cone_height = 505000.0
+
+# Distance Flag
+SHOW_DISTANCE = True
 
 def get_color_ix(label):
     '''
@@ -34,7 +51,7 @@ class LabelTool():
     def __init__(self, master):
         # set up the main frame
         self.parent = master
-        self.parent.title("LabelTool")
+        self.parent.title("municHMotorsport LabelTool")
         self.frame = Frame(self.parent)
         self.frame.pack(fill=BOTH, expand=1)
         self.parent.resizable(width = FALSE, height = FALSE)
@@ -51,6 +68,8 @@ class LabelTool():
         self.imagename = ''
         self.labelfilename = ''
         self.tkimg = None
+        self.image_width  = 0
+	self.image_height = 0
         self.currentLabelclass = ''
         self.cla_can_temp = []
         self.classcandidate_filename = 'class.txt'
@@ -89,6 +108,7 @@ class LabelTool():
         self.parent.bind("1", self.setClass1) 
         self.parent.bind("2", self.setClass2) 
         self.parent.bind("3", self.setClass3) 
+        self.parent.bind("4", self.setClass4)
         self.mainPanel.grid(row = 1, column = 1, rowspan = 4, sticky = W+N)
 
         # choose class
@@ -110,7 +130,7 @@ class LabelTool():
         # showing bbox info & delete bbox
         self.lb1 = Label(self.frame, text = 'Bounding boxes:')
         self.lb1.grid(row = 3, column = 2,  sticky = W+N)
-        self.listbox = Listbox(self.frame, width = 22, height = 12)
+        self.listbox = Listbox(self.frame, width = 50, height = 12)
         self.listbox.grid(row = 4, column = 2, sticky = N+S)
         self.btnDel = Button(self.frame, text = 'Delete', command = self.delBBox)
         self.btnDel.grid(row = 5, column = 2, sticky = W+E+N)
@@ -213,6 +233,8 @@ class LabelTool():
         self.img = Image.open(imagepath)
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.mainPanel.config(width = max(self.tkimg.width(), 400), height = max(self.tkimg.height(), 400))
+        self.image_width  = self.tkimg.width() 
+	self.image_height = self.tkimg.height()
         self.mainPanel.create_image(0, 0, image = self.tkimg, anchor=NW)
         self.progLabel.config(text = "%04d/%04d" %(self.cur, self.total))
 
@@ -233,16 +255,27 @@ class LabelTool():
                     #print tmp
                     self.bboxList.append(tuple(tmp))
                     color_ix = get_color_ix(tmp[4])
-                    tmpId = self.mainPanel.create_rectangle(int(tmp[0]), int(tmp[1]), \
+                    if not SHOW_DISTANCE:
+                        tmpId = self.mainPanel.create_rectangle(int(tmp[0]), int(tmp[1]), \
                                                             int(tmp[2]), int(tmp[3]), \
                                                             width = 2, \
                                                             outline = COLORS[color_ix])
-                    # print tmpId
-                    self.bboxIdList.append(tmpId)
-                    self.listbox.insert(END, '%s : (%d, %d) -> (%d, %d)' %(tmp[4],int(tmp[0]), int(tmp[1]), \
+                        # print tmpId
+                        self.bboxIdList.append(tmpId)
+                        self.listbox.insert(END, '%s : (%d, %d) -> (%d, %d)' %(tmp[4],int(tmp[0]), int(tmp[1]), \
                     												  int(tmp[2]), int(tmp[3])))
                     # self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
-                    self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[3])
+                        self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[3])
+                    else:
+                        tmpId = self.mainPanel.create_rectangle(int(tmp[0]), int(tmp[1]), \
+                                                            int(tmp[2]), int(tmp[3]), \
+                                                            width = 2, \
+                                                            outline = COLORS[color_ix])
+                        # print tmpId
+                        self.bboxIdList.append(tmpId)
+                        self.listbox.insert(END, '%s: d_width %.4fm d_height %.4fm' %(tmp[4], float(tmp[5]), float(tmp[6])))
+                    # self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
+                        self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[3])
 
     def saveImage(self):
         with open(self.labelfilename, 'w') as f:
@@ -258,14 +291,17 @@ class LabelTool():
         else:
             x1, x2 = min(self.STATE['x'], event.x), max(self.STATE['x'], event.x)
             y1, y2 = min(self.STATE['y'], event.y), max(self.STATE['y'], event.y)
-            if abs(y1 - y2) < 35:
+            if abs(y1 - y2) < 20:
                 self.cancelBBox(None)
                 return
-            self.bboxList.append((x1, y1, x2, y2, self.currentLabelclass))
+	    width_distance  = self.calcWidthDistanceFromBBox(x1, x2, y1, y2, self.currentLabelclass)
+	    height_distance = self.calcHeightDistanceFromBBox(x1, x2, y1, y2, self.currentLabelclass)
+            self.bboxList.append((x1, y1, x2, y2, self.currentLabelclass, width_distance, height_distance))
             self.bboxIdList.append(self.bboxId)
             self.bboxId = None
             color_ix = get_color_ix(self.currentLabelclass)
-            self.listbox.insert(END, '%s : (%d, %d) -> (%d, %d)' %(self.currentLabelclass,x1, y1, x2, y2))
+            self.listbox.insert(END, '%s: d_width %.4fm d_height %.4fm' %(self.currentLabelclass, width_distance, height_distance))
+	    #self.listbox.insert(END, 'distance: %d' %(distance))
             self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[3])
         self.STATE['click'] = 1 - self.STATE['click']
 
@@ -274,17 +310,17 @@ class LabelTool():
         if self.tkimg:
             if self.hl:
                 self.mainPanel.delete(self.hl)
-            self.hl = self.mainPanel.create_line(0, event.y, self.tkimg.width(), event.y, width = 2)
+            self.hl = self.mainPanel.create_line(0, event.y, self.tkimg.width(), event.y, width = 1)
             if self.vl:
                 self.mainPanel.delete(self.vl)
-            self.vl = self.mainPanel.create_line(event.x, 0, event.x, self.tkimg.height(), width = 2)
+            self.vl = self.mainPanel.create_line(event.x, 0, event.x, self.tkimg.height(), width = 1)
         if 1 == self.STATE['click']:
             if self.bboxId:
                 self.mainPanel.delete(self.bboxId)
             color_ix = get_color_ix(self.currentLabelclass)
             self.bboxId = self.mainPanel.create_rectangle(self.STATE['x'], self.STATE['y'], \
                                                             event.x, event.y, \
-                                                            width = 2, \
+                                                            width = 1, \
                                                             outline = COLORS[color_ix])
 
     def cancelBBox(self, event):
@@ -357,6 +393,45 @@ class LabelTool():
         self.classcandidate.current(2)
         self.currentLabelclass = self.classcandidate.get()
         print 'set label class to #03:',self.currentLabelclass
+    
+    def setClass4(self, event=None):
+        self.classcandidate.current(3)
+        self.currentLabelclass = self.classcandidate.get()
+        print 'set label class to #04:',self.currentLabelclass
+
+    def calcHeightDistanceFromBBox(self, x1, x2, y1, y2, cone_class):
+
+	cone_prefix = cone_class.split('-')[0]
+
+	height_on_sensor = ((float(y2) - float(y1)) / float(self.image_height)) * sensor_height
+	angle = ((float(x2) - float(x1)) / float(self.image_width)) * (- h_AOV) + (h_AOV/2.0)
+	perpendicular_distance = 0.0
+
+        if( cone_prefix == 'big' ):
+	    perpendicular_distance = ((large_cone_height * focal_length) / height_on_sensor) / 1000000.0
+	else:
+	    perpendicular_distance = ((small_cone_height * focal_length) / height_on_sensor) / 1000000.0
+	straight_distance = perpendicular_distance / math.cos(angle)
+	
+	return straight_distance	
+	
+    def calcWidthDistanceFromBBox(self, x1, x2, y1, y2, cone_class):
+
+	cone_prefix = cone_class.split('-')[0]
+
+	width_on_sensor = ((float(x2) - float(x1)) / float(self.image_width)) * sensor_width
+	angle = ((float(x2) - float(x1)) / float(self.image_width)) * (- h_AOV) + (h_AOV/2.0)
+	perpendicular_distance = 0.0
+
+        if( cone_prefix == 'big' ):
+	    perpendicular_distance = ((large_cone_width * focal_length) / width_on_sensor) / 1000000.0
+	else:
+	    perpendicular_distance = ((small_cone_width * focal_length) / width_on_sensor) / 1000000.0
+	straight_distance = perpendicular_distance / math.cos(angle)
+	
+	return straight_distance	
+	
+	
 
 
 ##    def setImage(self, imagepath = r'test2.png'):
