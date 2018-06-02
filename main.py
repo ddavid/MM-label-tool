@@ -21,7 +21,8 @@ COLORS = ['blue', 'yellow', 'red', 'black']
 # image sizes for the examples
 SIZE = 10, 10
 # Micrometers
-focal_length = 4000.0
+#focal_length = 4000.0
+focal_length = 4215.17
 # Micrometers
 sensor_width  = 6182.4
 sensor_height = 4953.6
@@ -35,7 +36,7 @@ large_cone_width  = 285000.0
 large_cone_height = 505000.0
 
 # Distance Flag
-SHOW_DISTANCE = True
+SHOW_DISTANCE = False 
 
 def get_color_ix(label):
     '''
@@ -255,27 +256,20 @@ class LabelTool():
                     #print tmp
                     self.bboxList.append(tuple(tmp))
                     color_ix = get_color_ix(tmp[4])
-                    if not SHOW_DISTANCE:
-                        tmpId = self.mainPanel.create_rectangle(int(tmp[0]), int(tmp[1]), \
-                                                            int(tmp[2]), int(tmp[3]), \
-                                                            width = 2, \
-                                                            outline = COLORS[color_ix])
-                        # print tmpId
-                        self.bboxIdList.append(tmpId)
-                        self.listbox.insert(END, '%s : (%d, %d) -> (%d, %d)' %(tmp[4],int(tmp[0]), int(tmp[1]), \
-                    												  int(tmp[2]), int(tmp[3])))
-                    # self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
-                        self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[3])
+                    tmpId = self.mainPanel.create_rectangle(int(tmp[0]), int(tmp[1]), \
+                                                        int(tmp[2]), int(tmp[3]), \
+                                                        width = 2, \
+                                                        outline = COLORS[color_ix])
+                    # print tmpId
+                    self.bboxIdList.append(tmpId)
+                    # For backwards compatibility with old label
+                    if len(tmp) > 5:
+                      self.listbox.insert(END, '%s: d_width %.4fm d_height %.4fm' %(tmp[4], float(tmp[5]), float(tmp[6])))
                     else:
-                        tmpId = self.mainPanel.create_rectangle(int(tmp[0]), int(tmp[1]), \
-                                                            int(tmp[2]), int(tmp[3]), \
-                                                            width = 2, \
-                                                            outline = COLORS[color_ix])
-                        # print tmpId
-                        self.bboxIdList.append(tmpId)
-                        self.listbox.insert(END, '%s: d_width %.4fm d_height %.4fm' %(tmp[4], float(tmp[5]), float(tmp[6])))
+                      self.listbox.insert(END, '%s : (%d, %d) -> (%d, %d)' %(tmp[4],int(tmp[0]), int(tmp[1]), \
+                                                                  int(tmp[2]), int(tmp[3])))
                     # self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[(len(self.bboxIdList) - 1) % len(COLORS)])
-                        self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[3])
+                    self.listbox.itemconfig(len(self.bboxIdList) - 1, fg = COLORS[3])
 
     def saveImage(self):
         with open(self.labelfilename, 'w') as f:
