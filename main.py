@@ -70,7 +70,7 @@ class LabelTool():
         self.labelfilename = ''
         self.tkimg = None
         self.image_width  = 0
-	self.image_height = 0
+        self.image_height = 0
         self.currentLabelclass = ''
         self.cla_can_temp = []
         self.classcandidate_filename = 'class.txt'
@@ -182,7 +182,7 @@ class LabelTool():
         self.imageList = glob.glob(os.path.join(self.imageDir, '*.JPG'))
         #print self.imageList
         if len(self.imageList) == 0:
-            print 'No .JPG images found in the specified dir!'
+            print('No .JPG images found in the specified dir!')
             return
 
         # default to the 1st image in the collection
@@ -195,7 +195,7 @@ class LabelTool():
             os.mkdir(self.outDir)
 
         self.loadImage()
-        print '%d images loaded from %s' %(self.total, s)
+        print('%d images loaded from %s' %(self.total, s))
 
     def loadImage(self):
         # load image
@@ -204,7 +204,7 @@ class LabelTool():
         self.tkimg = ImageTk.PhotoImage(self.img)
         self.mainPanel.config(width = max(self.tkimg.width(), 400), height = max(self.tkimg.height(), 400))
         self.image_width  = self.tkimg.width() 
-	self.image_height = self.tkimg.height()
+        self.image_height = self.tkimg.height()
         self.mainPanel.create_image(0, 0, image = self.tkimg, anchor=NW)
         self.progLabel.config(text = "%04d/%04d" %(self.cur, self.total))
 
@@ -245,7 +245,7 @@ class LabelTool():
             f.write('%d\n' %len(self.bboxList))
             for bbox in self.bboxList:
                 f.write(' '.join(map(str, bbox)) + '\n')
-        print 'Image No. %d saved' %(self.cur)
+        print('Image No. %d saved' %(self.cur))
 
 
     def mouseClick(self, event):
@@ -257,8 +257,8 @@ class LabelTool():
             if abs(y1 - y2) < 20:
                 self.cancelBBox(None)
                 return
-	    width_distance  = self.calcWidthDistanceFromBBox(x1, x2, y1, y2, self.currentLabelclass)
-	    height_distance = self.calcHeightDistanceFromBBox(x1, x2, y1, y2, self.currentLabelclass)
+            width_distance  = self.calcWidthDistanceFromBBox(x1, x2, y1, y2, self.currentLabelclass)
+            height_distance = self.calcHeightDistanceFromBBox(x1, x2, y1, y2, self.currentLabelclass)
             self.bboxList.append((x1, y1, x2, y2, self.currentLabelclass, width_distance, height_distance))
             self.bboxIdList.append(self.bboxId)
             self.bboxId = None
@@ -340,61 +340,60 @@ class LabelTool():
 
     def setClass(self):
     	self.currentLabelclass = self.classcandidate.get()
-    	print 'set label class to :',self.currentLabelclass
+    	print('set label class to :',self.currentLabelclass)
 
     def setClass1(self, event=None):
         self.classcandidate.current(0)
         self.currentLabelclass = self.classcandidate.get()
-        print 'set label class to #01:',self.currentLabelclass
+        print('set label class to #01:',self.currentLabelclass)
 
     def setClass2(self, event=None):
         self.classcandidate.current(1)
         self.currentLabelclass = self.classcandidate.get()
-        print 'set label class to #02:',self.currentLabelclass
+        print('set label class to #02:',self.currentLabelclass)
 
     def setClass3(self, event=None):
         self.classcandidate.current(2)
         self.currentLabelclass = self.classcandidate.get()
-        print 'set label class to #03:',self.currentLabelclass
+        print('set label class to #03:',self.currentLabelclass)
     
     def setClass4(self, event=None):
         self.classcandidate.current(3)
         self.currentLabelclass = self.classcandidate.get()
-        print 'set label class to #04:',self.currentLabelclass
+        print('set label class to #04:',self.currentLabelclass)
 
     def calcHeightDistanceFromBBox(self, x1, x2, y1, y2, cone_class):
 
-	cone_prefix = cone_class.split('-')[0]
+      cone_prefix = cone_class.split('-')[0]
 
-	height_on_sensor = ((float(y2) - float(y1)) / float(self.image_height)) * sensor_height
-	angle = ((float(x2) - float(x1)) / float(self.image_width)) * (- h_AOV) + (h_AOV/2.0)
-	perpendicular_distance = 0.0
+      height_on_sensor = ((float(y2) - float(y1)) / float(self.image_height)) * sensor_height
+      angle = ((float(x2) - float(x1)) / float(self.image_width)) * (- h_AOV) + (h_AOV/2.0)
+      perpendicular_distance = 0.0
 
-        if( cone_prefix == 'big' ):
-	    perpendicular_distance = ((large_cone_height * focal_length) / height_on_sensor) / 1000000.0
-	else:
-	    perpendicular_distance = ((small_cone_height * focal_length) / height_on_sensor) / 1000000.0
-	straight_distance = perpendicular_distance / math.cos(angle)
-	
-	return straight_distance	
-	
+      if( cone_prefix == 'big' ):
+          perpendicular_distance = ((large_cone_height * focal_length) / height_on_sensor) / 1000000.0
+      else:
+          perpendicular_distance = ((small_cone_height * focal_length) / height_on_sensor) / 1000000.0
+      straight_distance = perpendicular_distance / math.cos(angle)
+
+      return straight_distance
+
     def calcWidthDistanceFromBBox(self, x1, x2, y1, y2, cone_class):
 
-	cone_prefix = cone_class.split('-')[0]
+      cone_prefix = cone_class.split('-')[0]
 
-	width_on_sensor = ((float(x2) - float(x1)) / float(self.image_width)) * sensor_width
-	angle = ((float(x2) - float(x1)) / float(self.image_width)) * (- h_AOV) + (h_AOV/2.0)
-	perpendicular_distance = 0.0
+      width_on_sensor = ((float(x2) - float(x1)) / float(self.image_width)) * sensor_width
+      angle = ((float(x2) - float(x1)) / float(self.image_width)) * (- h_AOV) + (h_AOV/2.0)
+      perpendicular_distance = 0.0
 
-        if( cone_prefix == 'big' ):
-	    perpendicular_distance = ((large_cone_width * focal_length) / width_on_sensor) / 1000000.0
-	else:
-	    perpendicular_distance = ((small_cone_width * focal_length) / width_on_sensor) / 1000000.0
-	straight_distance = perpendicular_distance / math.cos(angle)
-	
-	return straight_distance	
-	
-	
+      if( cone_prefix == 'big' ):
+          perpendicular_distance = ((large_cone_width * focal_length) / width_on_sensor) / 1000000.0
+      else:
+          perpendicular_distance = ((small_cone_width * focal_length) / width_on_sensor) / 1000000.0
+      straight_distance = perpendicular_distance / math.cos(angle)
+
+      return straight_distance
+
 
 
 ##    def setImage(self, imagepath = r'test2.png'):
