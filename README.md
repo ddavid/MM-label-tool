@@ -2,6 +2,8 @@ MM-label-tool
 ===============
 
 A simple tool for labeling object bounding boxes in images, implemented with Python Tkinter.
+Small adaptations for ease of use and additional functionality on top of original repo: 
+https://github.com/puzzledqs/BBox-Label-Tool
 
 Data Organization
 -----------------
