@@ -36,7 +36,10 @@ large_cone_width  = 285000.0
 large_cone_height = 505000.0
 
 # Distance Flag
-SHOW_DISTANCE = False 
+SHOW_DISTANCE    = False
+
+# Bounding Box Height Threshold in pixel
+HEIGHT_THRESHOLD = 20
 
 def get_color_ix(label):
     '''
@@ -254,7 +257,8 @@ class LabelTool():
         else:
             x1, x2 = min(self.STATE['x'], event.x), max(self.STATE['x'], event.x)
             y1, y2 = min(self.STATE['y'], event.y), max(self.STATE['y'], event.y)
-            if abs(y1 - y2) < 20:
+            # Abort bounding box if object too small
+            if abs(y1 - y2) < HEIGHT_THRESHOLD:
                 self.cancelBBox(None)
                 return
             width_distance  = self.calcWidthDistanceFromBBox(x1, x2, y1, y2, self.currentLabelclass)
